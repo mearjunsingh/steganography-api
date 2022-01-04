@@ -4,6 +4,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from starlette.responses import FileResponse, Response
 from steganography import encode_text_in_image, decode_text_in_image, encode_image_in_image, decode_image_in_image
 from fastapi.staticfiles import StaticFiles
+import base64
 
 
 app = FastAPI(
@@ -21,7 +22,9 @@ async def encode_text(text: str = Form(...), password: str = Form(...), image : 
         while content := await image.read(1024):
             await out_file.write(content)
         encoded_image = encode_text_in_image(text, password, filename)
-    return FileResponse(encoded_image)
+    with open(encoded_image, "rb") as image_file:
+        encoded_image_string = base64.b64encode(image_file.read())
+    return {"encoded_image" : encoded_image_string}
 
 
 @app.post("/decode-text/", tags=["Hide Text In Image"])
