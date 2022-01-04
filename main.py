@@ -1,7 +1,6 @@
 import aiofiles
 import uuid
 from fastapi import FastAPI, UploadFile, File, Form
-from starlette.responses import FileResponse, Response
 from steganography import encode_text_in_image, decode_text_in_image, encode_image_in_image, decode_image_in_image
 from fastapi.staticfiles import StaticFiles
 
@@ -13,6 +12,8 @@ app = FastAPI(
 )
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
+BASE_URL = "http://127.0.0.1:8000/"
+
 
 @app.post("/encode-text/", tags=["Hide Text In Image"])
 async def encode_text(text: str = Form(...), password: str = Form(...), image : UploadFile = File(...)):
@@ -20,8 +21,9 @@ async def encode_text(text: str = Form(...), password: str = Form(...), image : 
     async with aiofiles.open(filename, 'wb') as out_file:
         while content := await image.read(1024):
             await out_file.write(content)
-        encoded_image = encode_text_in_image(text, password, filename)
-    return FileResponse(encoded_image)
+    encoded_image = encode_text_in_image(text, password, filename)
+    encoded_image_url = BASE_URL + encoded_image
+    return {"status" : "success", "image_url" : encoded_image_url}
 
 
 @app.post("/decode-text/", tags=["Hide Text In Image"])
@@ -30,11 +32,11 @@ async def decode_text(password: str = Form(...), image : UploadFile = File(...))
     async with aiofiles.open(filename, 'wb') as out_file:
         while content := await image.read(1024):
             await out_file.write(content)
-        decoded_text = decode_text_in_image(password, filename)
+    decoded_text = decode_text_in_image(password, filename)
     if decoded_text:
         return {'status' : 'success', 'message' : decoded_text}
     else:
-        return {'status' : 'error', 'message' : 'either password mistake or invalid image'}
+        return {'status' : 'error'}
 
 
 @app.post("/encode-image/", tags=["Hide Image In Image"])
@@ -48,7 +50,8 @@ async def encode_image(password: str = Form(...), source_image : UploadFile = Fi
         while content := await destination_image.read(1024):
             await out_file.write(content)
     encoded_image = encode_image_in_image(password, source_filename, destination_filename)
-    return FileResponse(encoded_image)
+    encoded_image_url = BASE_URL + encoded_image
+    return {"status" : "success", "image_url" : encoded_image_url}
     
 
 @app.post("/decode-image/", tags=["Hide Image In Image"])
@@ -57,8 +60,9 @@ async def decode_image(password: str = Form(...), image : UploadFile = File(...)
     async with aiofiles.open(filename, 'wb') as out_file:
         while content := await image.read(1024):
             await out_file.write(content)
-        decoded_image = decode_image_in_image(password, filename)
+    decoded_image = decode_image_in_image(password, filename)
     if decoded_image:
-        return FileResponse(decoded_image)
+        decoded_image_url = BASE_URL + decoded_image
+        return {"status" : "success", "image_url" : decoded_image_url}
     else:
-        return Response('either password mistake or invalid image')
+        return {'status' : 'error'}
